@@ -98,7 +98,7 @@ views:
       - type: grid
         view_layout:
           grid-area: status
-        columns: 6
+        columns: 9
         square: false
         cards:
           - type: tile
@@ -133,6 +133,28 @@ views:
               {%- set w = 'weather.wartook' %}
               **{{ state_attr(w,'temperature') | round(1) }}° &nbsp; {{ state_attr(w,'humidity') }}%**
               {{ state_attr(w,'wind_bearing') }} {{ state_attr(w,'wind_speed') | round(0) }} km/h · rain {{ states('sensor.wartook_forcast_rain_chance_0') }}%
+          # Controls, in the same row as the readouts: listen, which district, how loud.
+          - type: tile
+            entity: switch.cfa_pager_listen
+            name: Listen
+            icon: mdi:play-circle-outline
+            color: green
+          # select-options renders the districts as chips, so switching is one tap rather
+          # than a dropdown.
+          - type: tile
+            entity: select.cfa_pager_stream
+            name: District
+            icon: mdi:radio
+            color: blue
+            features:
+              - type: select-options
+          - type: tile
+            entity: media_player.cfa_radio
+            name: Volume
+            icon: mdi:speaker
+            color: purple
+            features:
+              - type: media-player-volume-slider
 
       # ---- your callouts ----------------------------------------------------------
       - type: vertical-stack
