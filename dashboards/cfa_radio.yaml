@@ -15,6 +15,18 @@
 _title: CFA Pager Radio
 _icon: mdi:fire-truck
 
+# Handled by kiosk-mode (NemesisRE/kiosk-mode), already a registered resource. Scoped to
+# the Kiosk user, which is what the wall display logs in as, so a phone or laptop keeps
+# its normal navigation.
+#
+# The header stays: the row heights below subtract its 56px, so hiding it would leave an
+# equal gap at the bottom rather than gaining any space.
+kiosk_mode:
+  user_settings:
+    - users:
+        - Kiosk
+      hide_sidebar: true
+
 views:
   - title: Radio
     path: radio
@@ -27,18 +39,40 @@ views:
       # minmax(0, ...) lets a track shrink below its content's minimum width. Plain fr
       # tracks refuse to, and the radar image's intrinsic size then pushes the whole grid
       # wider than the viewport.
-      grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr)
-      grid-template-rows: auto auto 1fr 1.4fr
+      # The radar is a square image that scales with its column, so the row holding it is
+      # sized from that column's width rather than a fraction of the leftover height:
+      # 100vw / 3.3 tracks is about 30.3vw, plus 36px for the heading above it. The table
+      # rows then take whatever is left. Both track sizes are viewport-relative, so the
+      # whole display fits any resolution instead of overflowing at some of them.
+      grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr)
+      grid-template-rows: auto auto minmax(0, 1fr) calc(30.3vw + 36px)
       grid-template-areas: |
         "header header"
         "status status"
         "callouts incidents"
         "traffic radar"
       height: calc(100vh - 56px)
+      # A track rounding up by a pixel must not produce a scrollbar on a wall display.
+      overflow: hidden
       grid-gap: 8px
       padding: 8px
       mediaquery:
-        # One column on a phone, in reading order.
+        # A short screen cannot afford a radar sized off a wide column, so the column
+        # narrows and the row follows it, keeping the cell square and the tables usable.
+        "(max-height: 900px)":
+          grid-template-columns: minmax(0, 3.6fr) minmax(0, 1fr)
+          grid-template-rows: auto auto minmax(0, 1fr) calc(22vw + 36px)
+          grid-template-areas: |
+            "header header"
+            "status status"
+            "callouts incidents"
+            "traffic radar"
+          height: calc(100vh - 56px)
+          overflow: hidden
+          grid-gap: 8px
+          padding: 8px
+        # One column on a phone, in reading order. Listed last so it wins over the
+        # height rule on a phone held upright.
         "(max-width: 1000px)":
           grid-template-columns: minmax(0, 1fr)
           grid-template-rows: auto auto auto auto auto auto
@@ -98,7 +132,7 @@ views:
       - type: grid
         view_layout:
           grid-area: status
-        columns: 9
+        columns: 8
         square: false
         cards:
           - type: tile
@@ -134,11 +168,6 @@ views:
               **{{ state_attr(w,'temperature') | round(1) }}° &nbsp; {{ state_attr(w,'humidity') }}%**
               {{ state_attr(w,'wind_bearing') }} {{ state_attr(w,'wind_speed') | round(0) }} km/h · rain {{ states('sensor.wartook_forcast_rain_chance_0') }}%
           # Controls, in the same row as the readouts: listen, which district, how loud.
-          - type: tile
-            entity: switch.cfa_pager_listen
-            name: Listen
-            icon: mdi:play-circle-outline
-            color: green
           # select-options renders the districts as chips, so switching is one tap rather
           # than a dropdown.
           - type: tile
@@ -148,11 +177,19 @@ views:
             color: blue
             features:
               - type: select-options
+          # Tapping the icon toggles the listen switch rather than the player itself,
+          # because the switch is what picks the stream and holds the idle window open.
+          # The state line under it is the player's own, so it reads Playing or Idle.
           - type: tile
             entity: media_player.cfa_radio
-            name: Volume
-            icon: mdi:speaker
+            name: Radio
+            icon: mdi:play-pause
             color: purple
+            icon_tap_action:
+              action: perform-action
+              perform_action: switch.toggle
+              target:
+                entity_id: switch.cfa_pager_listen
             features:
               - type: media-player-volume-slider
 
@@ -218,10 +255,10 @@ views:
               {%- set dots = {'CFA':'🔵','SES':'🟠','FRV':'🟢'} %}
               {%- set pages = (state_attr('sensor.cfa_pager_recent_pages','pages') or [])[:limit] %}
               {% if pages -%}
-              | Time | Agency | Code | Message |
+              | Time | Agency | Station | Message |
               |:--|:--|:--|:--|
               {% for p in pages -%}
-              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ dots.get(p.agency,'⚪') }} {{ p.agency }} | **{{ p.alphacode or p.capcode }}** | {{ p.text[:trim] }}{% if p.text | length > trim %}…{% endif %} |
+              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ dots.get(p.agency,'⚪') }} {{ p.agency }} | **{{ p.description or p.alphacode or p.capcode }}** | {{ p.text[:trim] }}{% if p.text | length > trim %}…{% endif %} |
               {% endfor %}
               {%- else -%}
               _Nothing received yet._
