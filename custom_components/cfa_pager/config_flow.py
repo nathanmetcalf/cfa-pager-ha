@@ -28,6 +28,9 @@ from .const import (
     CONF_HISTORY,
     CONF_PAGE_HISTORY,
     CONF_PORT,
+    CONF_RADAR_FRAMES,
+    CONF_RADAR_INTERVAL,
+    CONF_RADAR_PRODUCT,
     CONF_TOPICS,
     DEFAULT_BROKER,
     DEFAULT_CLIENT_ID,
@@ -35,6 +38,9 @@ from .const import (
     DEFAULT_HISTORY,
     DEFAULT_PAGE_HISTORY,
     DEFAULT_PORT,
+    DEFAULT_RADAR_FRAMES,
+    DEFAULT_RADAR_INTERVAL,
+    DEFAULT_RADAR_PRODUCT,
     DEFAULT_TLS,
     DEFAULT_TOPICS,
     DOMAIN,
@@ -83,6 +89,18 @@ def _tuning_schema(defaults: dict) -> dict:
             CONF_PAGE_HISTORY,
             default=defaults.get(CONF_PAGE_HISTORY, DEFAULT_PAGE_HISTORY),
         ): vol.All(vol.Coerce(int), vol.Range(min=0, max=500)),
+        vol.Optional(
+            CONF_RADAR_PRODUCT,
+            default=defaults.get(CONF_RADAR_PRODUCT, DEFAULT_RADAR_PRODUCT),
+        ): str,
+        vol.Required(
+            CONF_RADAR_FRAMES,
+            default=defaults.get(CONF_RADAR_FRAMES, DEFAULT_RADAR_FRAMES),
+        ): vol.All(vol.Coerce(int), vol.Range(min=2, max=20)),
+        vol.Required(
+            CONF_RADAR_INTERVAL,
+            default=defaults.get(CONF_RADAR_INTERVAL, DEFAULT_RADAR_INTERVAL),
+        ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
     }
 
 
@@ -157,6 +175,9 @@ class CfaPagerConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_DEDUPE_SECONDS: DEFAULT_DEDUPE_SECONDS,
                         CONF_HISTORY: DEFAULT_HISTORY,
                         CONF_PAGE_HISTORY: DEFAULT_PAGE_HISTORY,
+                        CONF_RADAR_INTERVAL: DEFAULT_RADAR_INTERVAL,
+                        CONF_RADAR_FRAMES: DEFAULT_RADAR_FRAMES,
+                        CONF_RADAR_PRODUCT: DEFAULT_RADAR_PRODUCT,
                     },
                 )
 
@@ -199,6 +220,9 @@ class CfaPagerConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_PAGE_HISTORY: import_data.get(
                     CONF_PAGE_HISTORY, DEFAULT_PAGE_HISTORY
                 ),
+                CONF_RADAR_INTERVAL: import_data.get(CONF_RADAR_INTERVAL, DEFAULT_RADAR_INTERVAL),
+                CONF_RADAR_FRAMES: import_data.get(CONF_RADAR_FRAMES, DEFAULT_RADAR_FRAMES),
+                CONF_RADAR_PRODUCT: import_data.get(CONF_RADAR_PRODUCT, DEFAULT_RADAR_PRODUCT),
             },
         )
 

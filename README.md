@@ -43,6 +43,9 @@ restart.
 | Duplicate window | Seconds. The same brigade and message text arriving twice inside the window counts once. `0` disables |
 | Callouts to keep | Rolling history, restored across restarts |
 | Recent pages to keep | All traffic, not just your brigades. `0` turns the entity off |
+| Rain radar product | Bureau radar id as `IDR<station><range>`; range 1 is 512 km, 2 is 256 km, 3 is 128 km, 4 is 64 km. Blank turns the radar off |
+| Radar frames | How many recent scans to animate. Six is about half an hour |
+| Radar interval | The Bureau publishes a scan every few minutes, so faster than 300 s gains nothing |
 
 Brigade **names** resolve against a bundled lookup of 1558 Victorian capcodes. Raw numbers
 always work, whether the lookup knows them or not, so other regions are fine.
@@ -58,6 +61,7 @@ On a fresh install, under a device named **CFA Pager**:
 | `sensor.cfa_pager_pages_seen` | Every page on the feed, matched or not. Proves ingestion is alive |
 | `sensor.cfa_pager_recent_pages` | The last N pages in a `pages` attribute, for a traffic view |
 | `binary_sensor.cfa_pager_feed_connected` | The MQTT socket state |
+| `image.cfa_pager_rain_radar` | Animated rain radar, composited here from the Bureau of Meteorology's public FTP: the last few scans plus the background, topography, locations and range layers |
 | `binary_sensor.cfa_pager_feed_stale` | Problem when nothing at all has arrived for 30 minutes. The failure that otherwise looks like a quiet night |
 
 Message text lives in attributes because a state is capped at 255 characters.
@@ -191,6 +195,14 @@ The `brands` check is ignored deliberately. It requires the integration to be li
 [home-assistant/brands](https://github.com/home-assistant/brands) repository, which is a
 pull request against a repo you do not own and only matters for inclusion in the default
 HACS store, not for a custom repository.
+
+## Dashboard
+
+A complete dashboard mirroring a wall display is in
+[`dashboards/cfa_radio.yaml`](dashboards/cfa_radio.yaml), with card examples in
+[`docs/dashboard.md`](docs/dashboard.md). It needs
+[layout-card](https://github.com/thomasloven/lovelace-layout-card) for the grid; the
+built-in sections and masonry views are auto-packers and cannot hold a fixed layout.
 
 ## Licence
 

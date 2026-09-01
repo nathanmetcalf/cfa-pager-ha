@@ -1,32 +1,63 @@
-# CFA Pager Radio dashboard, mirroring the Raspberry Pi wall display.
+# CFA Pager Radio dashboard, reproducing the Raspberry Pi wall display.
 #
 # Saved with: tools/ha_dashboard.py save cfa-radio dashboards/cfa_radio.yaml
 #
-# Three things on the Pi display have no Home Assistant equivalent yet and are left out
-# rather than faked: the stream state and volume (audio still lives on the Pi), the
-# incident list (no VicEmergency sensor exists yet), and the red and blue flash, which
-# needs card-mod or a custom card. A conditional alert banner stands in for the flash.
+# Requires layout-card (thomasloven/lovelace-layout-card), registered as a Lovelace
+# resource. Everything else, radar included, comes from the integration itself. The built-in sections and masonry views cannot do this layout: both are
+# auto-packers with fixed-width columns, so column spans produce staircase gaps and a short
+# card leaves a hole. The Pi display was a CSS grid with fixed rows filling the viewport,
+# and custom:grid-layout is the only way to express that.
+#
+# Card content MUST use a literal block scalar (|), never folded (>-). A folded scalar joins
+# lines with spaces, which destroys the newlines Markdown tables need.
+#
+# Each grid area holds exactly one card, so a heading plus its table is a vertical-stack.
 _title: CFA Pager Radio
 _icon: mdi:fire-truck
 
 views:
   - title: Radio
     path: radio
-    type: sections
-    max_columns: 2
-    dense_section_placement: true
-    sections:
-      # ---- header and alerts, full width -----------------------------------------
-      - type: grid
-        column_span: 2
+    type: custom:grid-layout
+    layout:
+      # Left column wider, as on the Pi, where the message column needed the room.
+      grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr)
+      # Header and status size to content; the two table rows share what is left.
+      grid-template-rows: auto auto 1fr 1.4fr
+      grid-template-areas: |
+        "header header"
+        "status status"
+        "callouts weather"
+        "traffic radar"
+      height: calc(100vh - 56px)
+      grid-gap: 8px
+      padding: 8px
+      mediaquery:
+        # One column on a phone, in reading order.
+        "(max-width: 1000px)":
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: auto auto auto auto auto auto
+          grid-template-areas: |
+            "header"
+            "status"
+            "callouts"
+            "traffic"
+            "weather"
+            "radar"
+          height: auto
+
+    cards:
+      # ---- header and alerts ------------------------------------------------------
+      - type: vertical-stack
+        view_layout:
+          grid-area: header
         cards:
           - type: markdown
-            content: >-
-              # CFA Pager Radio &nbsp;&nbsp; {{ now().strftime('%H:%M') }}
-
-              {% set watching = state_attr('sensor.cfa_pager_last_callout','watching') or [] -%}
-              watching {{ watching | count }}:
-              {{ watching | map('regex_replace','\s*\(.*\)','') | join('  ') }}
+            text_only: true
+            content: |
+              ## CFA Pager Radio &nbsp; · &nbsp; {{ now().strftime('%H:%M') }}
+              {%- set watching = state_attr('sensor.cfa_pager_last_callout','watching') or [] %}
+              Watching {{ watching | count }}: {{ watching | map('regex_replace','\s*\(\d+\)','') | join(' · ') }}
 
           - type: markdown
             visibility:
@@ -35,40 +66,36 @@ views:
                   {% set last = states('sensor.cfa_pager_last_callout') %}
                   {{ last not in ['unknown','unavailable'] and
                      (now() - as_datetime(last)).total_seconds() < 900 }}
-            content: >-
-              {% set c = (state_attr('sensor.cfa_pager_last_callout','callouts') or [{}])[0] %}
-              <ha-alert alert-type="error" title="CALLOUT {{ c.get('brigade','') }}">
-              {{ c.get('text','') }}
-              </ha-alert>
+            content: |
+              {%- set c = (state_attr('sensor.cfa_pager_last_callout','callouts') or [{}])[0] %}
+              # 🔴 CALLOUT — {{ c.get('brigade','') }}
+              ### {{ c.get('text','') }}
 
           - type: markdown
             visibility:
               - condition: state
                 entity: binary_sensor.cfa_pager_feed_connected
                 state: "off"
-            content: >-
-              <ha-alert alert-type="error" title="Pager feed disconnected">
-              No connection to the pager broker, so callouts will be missed.
-              </ha-alert>
+            content: |
+              # ⚠️ Pager feed disconnected
+              Callouts are being missed.
 
           - type: markdown
             visibility:
               - condition: state
                 entity: binary_sensor.cfa_pager_feed_stale
                 state: "on"
-            content: >-
-              <ha-alert alert-type="warning" title="Pager feed stale">
-              Connected, but nothing has arrived for over 30 minutes.
-              </ha-alert>
+            content: |
+              ### ⚠️ Pager feed stale
+              Nothing has arrived for over 30 minutes.
 
-      # ---- status tiles ------------------------------------------------------------
+      # ---- status tiles -----------------------------------------------------------
       - type: grid
-        column_span: 2
+        view_layout:
+          grid-area: status
+        columns: 4
+        square: false
         cards:
-          - type: heading
-            heading: Status
-            heading_style: title
-            icon: mdi:gauge
           - type: tile
             entity: sensor.cfa_pager_callouts_today
             name: Callouts today
@@ -85,89 +112,90 @@ views:
             entity: sensor.cfa_pager_pages_seen
             name: Pages seen
             icon: mdi:message-text-outline
-          - type: tile
-            entity: sensor.wartook_forcast_fire_danger_0
-            name: Fire danger
-            icon: mdi:fire-alert
-          - type: tile
-            entity: weather.wartook
-            name: Wartook
-            icon: mdi:weather-partly-rainy
 
-      # ---- your callouts -----------------------------------------------------------
-      - type: grid
+      # ---- your callouts ----------------------------------------------------------
+      - type: vertical-stack
+        view_layout:
+          grid-area: callouts
         cards:
           - type: heading
             heading: Your callouts
             heading_style: title
             icon: mdi:fire-truck
           - type: markdown
-            content: >-
-              {% set limit = 8 %}
-              {% set callouts = (state_attr('sensor.cfa_pager_last_callout','callouts') or [])[:limit] %}
-              {% if callouts %}
+            content: |
+              {%- set limit = 6 %}
+              {%- set callouts = (state_attr('sensor.cfa_pager_last_callout','callouts') or [])[:limit] %}
+              {% if callouts -%}
               | Time | Brigade | Message |
-              |---|---|---|
+              |:--|:--|:--|
               {% for c in callouts -%}
               | {{ c.ts | timestamp_custom('%d %b %H:%M') }} | **{{ c.brigade or c.description }}** | {{ c.text }} |
               {% endfor %}
-              {% else %}
+              {%- else -%}
               _No callouts recorded._
-              {% endif %}
+              {%- endif %}
 
-      # ---- fire weather ------------------------------------------------------------
-      - type: grid
+      # ---- fire weather -----------------------------------------------------------
+      - type: vertical-stack
+        view_layout:
+          grid-area: weather
         cards:
           - type: heading
             heading: Fire weather
             heading_style: title
             icon: mdi:weather-windy
           - type: markdown
-            content: >-
-              {% set w = 'weather.wartook' %}
-              {% set fdr = states('sensor.wartook_forcast_fire_danger_0') %}
+            content: |
+              {%- set w = 'weather.wartook' %}
+              {%- set fdr = states('sensor.wartook_forcast_fire_danger_0') %}
               | | |
-              |---|---|
+              |:--|--:|
               | Temperature | **{{ state_attr(w,'temperature') }} °C** |
               | Humidity | **{{ state_attr(w,'humidity') }} %** |
-              | Wind | **{{ state_attr(w,'wind_bearing') }} {{ state_attr(w,'wind_speed') }} km/h** |
-              | Conditions | {{ states(w) }} |
-              | Fire danger | {% if fdr in ['unknown','unavailable'] %}_not published (out of season)_{% else %}**{{ fdr }}**{% endif %} |
-              | Rain chance today | {{ states('sensor.wartook_forcast_rain_chance_0') }} % |
+              | Wind | **{{ state_attr(w,'wind_bearing') }} {{ state_attr(w,'wind_speed') | round(0) }} km/h** |
+              | Conditions | {{ states(w) | title }} |
+              | Rain chance | {{ states('sensor.wartook_forcast_rain_chance_0') }} % |
+              | Fire danger | {% if fdr in ['unknown','unavailable'] %}not in season{% else %}**{{ fdr }}**{% endif %} |
 
-              _Bureau of Meteorology, Wartook._
-
-      # ---- all pager traffic -------------------------------------------------------
-      - type: grid
+      # ---- all pager traffic ------------------------------------------------------
+      - type: vertical-stack
+        view_layout:
+          grid-area: traffic
         cards:
           - type: heading
             heading: All pager traffic
             heading_style: title
             icon: mdi:format-list-bulleted
           - type: markdown
-            content: >-
-              {% set limit = 12 %}
-              {% set pages = (state_attr('sensor.cfa_pager_recent_pages','pages') or [])[:limit] %}
-              {% if pages %}
+            content: |
+              {%- set limit = 12 %}
+              {%- set trim = 84 %}
+              {%- set pages = (state_attr('sensor.cfa_pager_recent_pages','pages') or [])[:limit] %}
+              {% if pages -%}
               | Time | Agency | Code | Message |
-              |---|---|---|---|
+              |:--|:--|:--|:--|
               {% for p in pages -%}
-              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ p.agency }} | {{ p.alphacode or p.capcode }} | {{ p.text }} |
+              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ p.agency }} | {{ p.alphacode or p.capcode }} | {{ p.text[:trim] }}{% if p.text | length > trim %}…{% endif %} |
               {% endfor %}
-              {% else %}
+              {%- else -%}
               _Nothing received yet._
-              {% endif %}
+              {%- endif %}
 
-      # ---- rain radar --------------------------------------------------------------
-      - type: grid
+      # ---- rain radar -------------------------------------------------------------
+      - type: vertical-stack
+        view_layout:
+          grid-area: radar
         cards:
           - type: heading
             heading: Rain radar
             heading_style: title
             icon: mdi:radar
-          - type: markdown
-            # Served by the Pi, which builds the animated loop from BOM's public FTP. The
-            # query string changes once a minute so the browser refetches instead of
-            # holding a stale frame for hours.
-            content: >-
-              ![Rainbow 256km radar](http://172.20.20.62:8080/radar.gif?t={{ (now().timestamp() / 60) | int }})
+          # Served by the integration's own image entity, so this dashboard depends on
+          # nothing outside Home Assistant. picture-entity refetches when the entity's
+          # image_last_updated changes, which the integration sets on each rebuild.
+          - type: picture-entity
+            entity: image.cfa_pager_rain_radar
+            show_state: false
+            show_name: false
+            camera_view: auto

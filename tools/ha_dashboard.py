@@ -9,6 +9,8 @@ Usage:
   ha_dashboard.py list
   ha_dashboard.py save <url-path> <config.yaml> [--title T] [--icon mdi:x]
   ha_dashboard.py delete <url-path>
+  ha_dashboard.py resources
+  ha_dashboard.py resource-add <url>
 """
 
 from __future__ import annotations
@@ -70,6 +72,26 @@ async def main() -> int:
             for board in boards:
                 print(f"  {board.get('url_path')}  {board.get('title')!r}"
                       f"  mode={board.get('mode')}")
+            return 0
+
+        if command == "resources":
+            for item in await client.send({"type": "lovelace/resources"}):
+                print(f"  {item.get('type'):<8} {item.get('url')}")
+            return 0
+
+        if command == "resource-add":
+            url = sys.argv[2]
+            existing_res = await client.send({"type": "lovelace/resources"})
+            if any(r.get("url", "").split("?")[0] == url.split("?")[0]
+                   for r in existing_res):
+                print(f"  {url} is already registered")
+                return 0
+            await client.send({
+                "type": "lovelace/resources/create",
+                "res_type": "module",
+                "url": url,
+            })
+            print(f"  registered {url}")
             return 0
 
         url_path = sys.argv[2]

@@ -23,6 +23,9 @@ CONF_HISTORY = "history"
 # How many recent pages to keep for display, matched or not. Kept separate from the
 # callout history because the volume is three orders of magnitude higher.
 CONF_PAGE_HISTORY = "page_history"
+CONF_RADAR_PRODUCT = "radar_product"
+CONF_RADAR_FRAMES = "radar_frames"
+CONF_RADAR_INTERVAL = "radar_interval"
 
 DEFAULT_BROKER = "pocsag.info"
 DEFAULT_PORT = 1883
@@ -32,6 +35,13 @@ DEFAULT_TOPICS = ["agency/#"]
 DEFAULT_DEDUPE_SECONDS = 90
 DEFAULT_HISTORY = 100
 DEFAULT_PAGE_HISTORY = 50
+
+# Rain radar. Products are <IDR><station><range>, where range 1 is 512 km, 2 is 256 km,
+# 3 is 128 km and 4 is 64 km. IDR952 is Rainbow at 256 km.
+DEFAULT_RADAR_PRODUCT = "IDR952"
+DEFAULT_RADAR_FRAMES = 6
+DEFAULT_RADAR_INTERVAL = 300
+DEFAULT_RADAR_FTP_HOST = "ftp.bom.gov.au"
 
 # Feed is considered dead if nothing at all arrives for this long. Measured rate is about
 # one page every two minutes, and the quietest observed gap is well inside this.
@@ -45,4 +55,4 @@ ATTR_PAGES = "pages"
 
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 
-PLATFORMS = ["sensor", "binary_sensor"]
+PLATFORMS = ["sensor", "binary_sensor", "image"]
