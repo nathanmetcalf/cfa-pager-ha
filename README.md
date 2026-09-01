@@ -62,6 +62,12 @@ On a fresh install, under a device named **CFA Pager**:
 
 Message text lives in attributes because a state is capped at 255 characters.
 
+## Services
+
+| Service | What it does |
+| --- | --- |
+| `cfa_pager.clear_history` | Forgets stored callouts and recent pages. `callouts` and `pages` are separate flags, because after testing you usually want the synthetic callouts gone and the live traffic kept |
+
 ## Events
 
 | Event | When |
