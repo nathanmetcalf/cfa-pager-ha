@@ -90,18 +90,47 @@ automation:
 
 `sensor.cfa_pager_recent_pages` holds the list in an attribute. A markdown card renders it:
 
+There are two separate limits, and it is worth keeping them apart:
+
+- **How many are kept** is the *Recent pages to keep* option, set in the UI.
+- **How many are shown** is the `limit` at the top of the card below. Showing fewer than
+  are kept is usually what you want: the attribute can hold 50 while the wall display shows
+  the last 10.
+
 ```yaml
 type: markdown
+title: Recent pager traffic
 content: |
-  | Time | Brigade | Message |
-  |---|---|---|
-  {% for p in state_attr('sensor.cfa_pager_recent_pages', 'pages') or [] -%}
-  | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ p.alphacode or p.capcode }} | {{ p.text }} |
+  {% set limit = 10 %}
+  {% set pages = (state_attr('sensor.cfa_pager_recent_pages', 'pages') or [])[:limit] %}
+  | Time | Agency | Code | Message |
+  |---|---|---|---|
+  {% for p in pages -%}
+  | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ p.agency }} | {{ p.alphacode or p.capcode }} | {{ p.text }} |
   {% endfor %}
 ```
 
-Swap the entity for `sensor.cfa_pager_last_callout` and the attribute for `callouts` to get
-your own callout history instead.
+The same shape gives your own callout history, from the other entity and attribute:
+
+```yaml
+type: markdown
+title: Your callouts
+content: |
+  {% set limit = 10 %}
+  {% set callouts = (state_attr('sensor.cfa_pager_last_callout', 'callouts') or [])[:limit] %}
+  {% if callouts %}
+  | Time | Brigade | Message |
+  |---|---|---|
+  {% for c in callouts -%}
+  | {{ c.ts | timestamp_custom('%d %b %H:%M') }} | {{ c.brigade or c.description }} | {{ c.text }} |
+  {% endfor %}
+  {% else %}
+  No callouts yet.
+  {% endif %}
+```
+
+Markdown tables must start at column 0: four or more leading spaces make Markdown render
+the whole thing as a code block instead.
 
 ## One thing to add yourself
 
