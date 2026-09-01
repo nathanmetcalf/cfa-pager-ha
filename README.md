@@ -88,6 +88,9 @@ automation:
 
 ## Showing recent pages on a dashboard
 
+More card examples, including a single card with everything on it, are in
+[docs/dashboard.md](docs/dashboard.md).
+
 `sensor.cfa_pager_recent_pages` holds the list in an attribute. A markdown card renders it:
 
 There are two separate limits, and it is worth keeping them apart:
