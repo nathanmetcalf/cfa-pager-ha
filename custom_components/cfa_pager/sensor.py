@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 
 from homeassistant.components.sensor import (
@@ -15,10 +15,24 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, SIGNAL_UPDATE
+from . import incidents as incidents_module
+from .const import (
+    CONF_INCIDENT_INTERVAL,
+    CONF_INCIDENT_MAX,
+    CONF_INCIDENT_RADIUS,
+    CONF_INCIDENT_URL,
+    DEFAULT_INCIDENT_INTERVAL,
+    DEFAULT_INCIDENT_MAX,
+    DEFAULT_INCIDENT_RADIUS,
+    DEFAULT_INCIDENT_URL,
+    DEFAULT_USER_AGENT,
+    DOMAIN,
+    SIGNAL_UPDATE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,9 +43,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     feed = hass.data[DOMAIN][entry.entry_id]
+    settings = {**entry.data, **entry.options}
     entities = [LastCalloutSensor(feed), CalloutsTodaySensor(feed), PagesSeenSensor(feed)]
     if feed.page_limit:
         entities.append(RecentPagesSensor(feed))
+    if settings.get(CONF_INCIDENT_URL, DEFAULT_INCIDENT_URL):
+        entities.append(IncidentsSensor(feed, settings))
     async_add_entities(entities)
 
 
@@ -184,3 +201,79 @@ class RecentPagesSensor(PagerEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return {"limit": self._feed.page_limit, "pages": self._feed.pages}
+
+
+class IncidentsSensor(PagerEntity):
+    """Going incidents within a radius of home, nearest first.
+
+    Polls on its own timer rather than off the pager feed: the two are unrelated, and a
+    quiet pager night is exactly when you still want to see what is going on nearby.
+
+    This entity changes on every poll and carries the whole list in its attributes, so
+    exclude it from the recorder unless you want that history.
+    """
+
+    _attr_name = "Nearby incidents"
+    _attr_unique_id = "cfa_pager_incidents"
+    _attr_icon = "mdi:map-marker-alert"
+
+    def __init__(self, feed, settings: dict) -> None:
+        super().__init__(feed)
+        self._url = settings.get(CONF_INCIDENT_URL, DEFAULT_INCIDENT_URL)
+        self._radius = settings.get(CONF_INCIDENT_RADIUS, DEFAULT_INCIDENT_RADIUS)
+        self._interval = settings.get(CONF_INCIDENT_INTERVAL, DEFAULT_INCIDENT_INTERVAL)
+        self._max = settings.get(CONF_INCIDENT_MAX, DEFAULT_INCIDENT_MAX)
+        self._incidents: list[dict] = []
+        self._error: str | None = None
+        self._updated: datetime | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        await self._refresh()
+        self.async_on_remove(
+            async_track_time_interval(
+                self.hass, self._scheduled, timedelta(seconds=self._interval)
+            )
+        )
+
+    @callback
+    def _scheduled(self, _now) -> None:
+        self.hass.async_create_task(self._refresh())
+
+    async def _refresh(self) -> None:
+        """Fetch and filter. A failure keeps the previous list rather than emptying it."""
+        try:
+            rows = await self.hass.async_add_executor_job(
+                incidents_module.nearby,
+                self._url,
+                DEFAULT_USER_AGENT,
+                self.hass.config.latitude,
+                self.hass.config.longitude,
+                self._radius,
+                self._max,
+            )
+        except Exception as err:  # network, gzip and JSON all raise their own
+            self._error = f"{type(err).__name__}: {err}"
+            _LOGGER.warning("Could not fetch incidents: %s", err)
+            self.async_write_ha_state()
+            return
+        self._incidents = rows
+        self._error = None
+        self._updated = dt_util.utcnow()
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> int:
+        return len(self._incidents)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return {
+            "incidents": self._incidents,
+            "radius_km": self._radius,
+            "nearest_km": self._incidents[0]["km"] if self._incidents else None,
+            "home": [self.hass.config.latitude, self.hass.config.longitude],
+            "last_updated": self._updated.isoformat() if self._updated else None,
+            "attribution": "VicEmergency",
+            "error": self._error,
+        }

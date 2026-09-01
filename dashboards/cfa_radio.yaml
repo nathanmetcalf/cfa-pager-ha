@@ -20,15 +20,17 @@ views:
     path: radio
     type: custom:grid-layout
     layout:
-      # Left column wider, as on the Pi, where the message column needed the room.
-      grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr)
-      # Header and status size to content; the two table rows share what is left.
+      # Three columns: wide left for the message text, incidents down the middle spanning
+      # both body rows, weather and radar stacked on the right. minmax(0, ...) lets a track
+      # shrink below its content's minimum width; plain fr tracks refuse to, and the radar
+      # image's intrinsic size then pushes the whole grid wider than the viewport.
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.9fr)
       grid-template-rows: auto auto 1fr 1.4fr
       grid-template-areas: |
-        "header header"
-        "status status"
-        "callouts weather"
-        "traffic radar"
+        "header header header"
+        "status status status"
+        "callouts incidents weather"
+        "traffic incidents radar"
       height: calc(100vh - 56px)
       grid-gap: 8px
       padding: 8px
@@ -36,11 +38,12 @@ views:
         # One column on a phone, in reading order.
         "(max-width: 1000px)":
           grid-template-columns: minmax(0, 1fr)
-          grid-template-rows: auto auto auto auto auto auto
+          grid-template-rows: auto auto auto auto auto auto auto
           grid-template-areas: |
             "header"
             "status"
             "callouts"
+            "incidents"
             "traffic"
             "weather"
             "radar"
@@ -134,6 +137,29 @@ views:
               {% endfor %}
               {%- else -%}
               _No callouts recorded._
+              {%- endif %}
+
+      # ---- nearby incidents -------------------------------------------------------
+      - type: vertical-stack
+        view_layout:
+          grid-area: incidents
+        cards:
+          - type: heading
+            heading: Going incidents near you
+            heading_style: title
+            icon: mdi:map-marker-alert
+          - type: markdown
+            content: |
+              {%- set e = 'sensor.cfa_pager_nearby_incidents' %}
+              {%- set rows = state_attr(e,'incidents') or [] %}
+              {% if rows -%}
+              | Dist | Type | Location |
+              |:--|:--|:--|
+              {% for r in rows[:12] -%}
+              | **{{ r.km }}km {{ r.dir }}** | {{ (r.category or r.feed_type)[:18] }} | {{ (r.location or r.name)[:38] }} |
+              {% endfor %}
+              {%- else -%}
+              _Nothing going within {{ state_attr(e,'radius_km') }} km._
               {%- endif %}
 
       # ---- fire weather -----------------------------------------------------------

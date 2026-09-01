@@ -55,7 +55,11 @@
           "page_history": "Recent pages to keep for display",
           "radar_product": "Rain radar product",
           "radar_frames": "Radar frames in the loop",
-          "radar_interval": "Radar rebuild interval (seconds)"
+          "radar_interval": "Radar rebuild interval (seconds)",
+          "incident_url": "Nearby incidents feed URL",
+          "incident_radius": "Incident radius (km)",
+          "incident_interval": "Incident poll interval (seconds)",
+          "incident_max": "Maximum incidents to keep"
         },
         "data_description": {
           "dedupe_seconds": "The same brigade and message text arriving twice inside this window counts once. 0 disables it.",
@@ -68,7 +72,11 @@
           "page_history": "Shown by sensor.cfa_recent_pages, all traffic and not just your brigades. Set to 0 to turn the entity off. Exclude it from the recorder: it changes on every page, roughly 670 times a day.",
           "radar_product": "Bureau of Meteorology radar id, as IDR<station><range>. Range 1 is 512 km, 2 is 256 km, 3 is 128 km, 4 is 64 km. IDR952 is Rainbow at 256 km. Leave blank to turn the radar off.",
           "radar_frames": "How many recent scans to animate. Six covers about half an hour.",
-          "radar_interval": "The Bureau publishes a scan every few minutes, so rebuilding faster than 300 seconds gains nothing."
+          "radar_interval": "The Bureau publishes a scan every few minutes, so rebuilding faster than 300 seconds gains nothing.",
+          "incident_url": "A GeoJSON feed of incidents. Defaults to VicEmergency. Leave blank to turn the incidents sensor off.",
+          "incident_radius": "Straight-line distance from Home Assistant's own home coordinates, so nothing else needs configuring.",
+          "incident_interval": "How often to poll the feed.",
+          "incident_max": "Nearest first, so a low number keeps the closest ones."
         }
       }
     },

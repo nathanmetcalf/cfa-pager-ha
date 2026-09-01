@@ -43,6 +43,8 @@ restart.
 | Duplicate window | Seconds. The same brigade and message text arriving twice inside the window counts once. `0` disables |
 | Callouts to keep | Rolling history, restored across restarts |
 | Recent pages to keep | All traffic, not just your brigades. `0` turns the entity off |
+| Nearby incidents feed URL | A GeoJSON feed of incidents. Defaults to VicEmergency. Blank turns the sensor off |
+| Incident radius | Straight-line kilometres from Home Assistant's own home coordinates, so nothing else needs configuring |
 | Rain radar product | Bureau radar id as `IDR<station><range>`; range 1 is 512 km, 2 is 256 km, 3 is 128 km, 4 is 64 km. Blank turns the radar off |
 | Radar frames | How many recent scans to animate. Six is about half an hour |
 | Radar interval | The Bureau publishes a scan every few minutes, so faster than 300 s gains nothing |
@@ -61,6 +63,7 @@ On a fresh install, under a device named **CFA Pager**:
 | `sensor.cfa_pager_pages_seen` | Every page on the feed, matched or not. Proves ingestion is alive |
 | `sensor.cfa_pager_recent_pages` | The last N pages in a `pages` attribute, for a traffic view |
 | `binary_sensor.cfa_pager_feed_connected` | The MQTT socket state |
+| `sensor.cfa_pager_nearby_incidents` | Count of going incidents within a radius of Home Assistant's home, with the list in an `incidents` attribute: distance, compass bearing, category, status and location, nearest first |
 | `image.cfa_pager_rain_radar` | Animated rain radar, composited here from the Bureau of Meteorology's public FTP: the last few scans plus the background, topography, locations and range layers |
 | `binary_sensor.cfa_pager_feed_stale` | Problem when nothing at all has arrived for 30 minutes. The failure that otherwise looks like a quiet night |
 
@@ -156,7 +159,11 @@ recorder:
   exclude:
     entities:
       - sensor.cfa_pager_recent_pages
+      - sensor.cfa_pager_nearby_incidents
 ```
+
+`sensor.cfa_pager_nearby_incidents` changes on every poll and carries its whole list in
+attributes too, for the same reason.
 
 An integration cannot do this for you; recorder filtering is user config. Set **Recent
 pages to keep** to `0` if you would rather not have the entity at all.
