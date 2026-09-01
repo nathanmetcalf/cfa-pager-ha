@@ -248,17 +248,25 @@ views:
             heading: All pager traffic
             heading_style: title
             icon: mdi:format-list-bulleted
+          # A Markdown table is only as wide as its content, and the message is the only
+          # column that can grow, so the trim length is what decides whether the table
+          # fills the card. The station name is capped as well, because a long one steals
+          # width from the message and wraps the row onto two lines.
+          #
+          # A YAML comment cannot go inside the block scalar below: it would render as a
+          # Markdown heading.
           - type: markdown
             content: |
               {%- set limit = 12 %}
-              {%- set trim = 84 %}
+              {%- set trim = 124 %}
+              {%- set station_trim = 20 %}
               {%- set dots = {'CFA':'🔵','SES':'🟠','FRV':'🟢'} %}
               {%- set pages = (state_attr('sensor.cfa_pager_recent_pages','pages') or [])[:limit] %}
               {% if pages -%}
               | Time | Agency | Station | Message |
               |:--|:--|:--|:--|
               {% for p in pages -%}
-              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ dots.get(p.agency,'⚪') }} {{ p.agency }} | **{{ p.description or p.alphacode or p.capcode }}** | {{ p.text[:trim] }}{% if p.text | length > trim %}…{% endif %} |
+              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ dots.get(p.agency,'⚪') }} {{ p.agency }} | **{{ (p.description or p.alphacode or p.capcode)[:station_trim] }}{% if (p.description or '') | length > station_trim %}…{% endif %}** | {{ p.text[:trim] }}{% if p.text | length > trim %}…{% endif %} |
               {% endfor %}
               {%- else -%}
               _Nothing received yet._
