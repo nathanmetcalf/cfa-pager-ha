@@ -5,7 +5,9 @@
     "@nathanmetcalf"
   ],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/nathanmetcalf/cfa-pager-ha",
   "integration_type": "service",
   "iot_class": "cloud_push",
