@@ -1,0 +1,16 @@
+# The brigades to alert on. This is the human-editable input; tools/gen_capcodes.py
+# resolves each entry to a capcode via data/capcodes.csv and writes the generated
+# ha/custom_templates/cfa.jinja that Home Assistant actually reads.
+#
+# Entries may be a station name, an alphacode, or a raw capcode. Names win over
+# alphacodes. Anything unresolvable is a hard error rather than a silent drop, because a
+# typo here means a brigade never pages you.
+watched:
+  - LAHARUM
+  - BRIMPAEN
+  - WONWONDAH
+  - DADSWELLS BRIDGE
+  - PIMPINIO          # spelled PIMPONIO in the CFA notifications table
+  - WANDIN            # WANDIN_ALL in the notifications table
+  - 1545128           # D13 Rope Rescue, listed as ROPE13
+  - 574888            # D17_ALL, absent from capcodes.csv so given as a number

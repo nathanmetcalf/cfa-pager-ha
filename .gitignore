@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+# Local copies of the Pi's data, pulled for the parity check
+/tmp/
+raw.jsonl
+history.db
+# Never commit tokens
+ha_token
+secrets.yaml
