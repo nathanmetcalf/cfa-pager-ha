@@ -1,0 +1,23 @@
+# Copy to config.yaml and edit. config.yaml is not tracked by git.
+
+home_assistant:
+  # WebSocket endpoint, not the dashboard URL. Use ws:// on a LAN, wss:// through a proxy.
+  url: ws://homeassistant.local:8123/api/websocket
+  # A long lived access token, created under your Home Assistant profile. Keep it mode
+  # 600. The CFA_DECK_TOKEN environment variable overrides this file if it is set.
+  token_file: ~/.config/cfa-deck/token
+
+deck:
+  brightness: 60          # 0-100
+  reconnect_seconds: 10   # how often to look for the deck when none is attached
+  volume_step: 10         # percent per press of VOL - and VOL +
+
+# Entities the six keys read and drive. These are the defaults the cfa_pager integration
+# creates; change them only if you renamed the entities.
+entities:
+  listen: switch.cfa_pager_listen
+  district: select.cfa_pager_stream
+  player: media_player.cfa_radio
+  callouts: sensor.cfa_pager_callouts_today
+  feed_connected: binary_sensor.cfa_pager_feed_connected
+  feed_stale: binary_sensor.cfa_pager_feed_stale

@@ -1,0 +1,16 @@
+[Unit]
+Description=CFA pager Stream Deck panel
+Documentation=https://github.com/nathanmetcalf/cfa-pager-ha
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# A user unit, not a system one. logind grants the seat user an ACL on the Stream Deck's
+# HID node, so running as root is neither needed nor helpful.
+WorkingDirectory=%h/cfa-pager-ha/streamdeck
+ExecStart=%h/cfa-pager-ha/streamdeck/.venv/bin/python3 %h/cfa-pager-ha/streamdeck/deck.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -7,3 +7,6 @@ history.db
 # Never commit tokens
 ha_token
 secrets.yaml
+# Stream Deck panel: local config carries the HA URL and a token path
+/streamdeck/config.yaml
+/streamdeck/.venv/
