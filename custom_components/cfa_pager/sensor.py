@@ -119,7 +119,10 @@ class LastCalloutSensor(PagerEntity, RestoreEntity):
             "text": callout.get("text"),
             "topic": callout.get("topic"),
             "brigade": callout.get("brigade"),
-            "callouts": self._feed.callouts,
+            # A copy, not the feed's own list: Home Assistant skips the state write
+            # when the new attributes compare equal to the stored ones, and the same
+            # list object always does.
+            "callouts": list(self._feed.callouts),
             "watching": [
                 f"{label} ({code})"
                 for code, label in sorted(self._feed.labels.items(), key=lambda kv: int(kv[0]))
@@ -200,7 +203,10 @@ class RecentPagesSensor(PagerEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        return {"limit": self._feed.page_limit, "pages": self._feed.pages}
+        # list(), for the reason given on the callouts attribute above. This entity is
+        # where it bites: once the list reaches its cap the length stops changing too,
+        # so state and attributes both look unchanged and the list freezes on screen.
+        return {"limit": self._feed.page_limit, "pages": list(self._feed.pages)}
 
 
 class IncidentsSensor(PagerEntity):
@@ -269,7 +275,7 @@ class IncidentsSensor(PagerEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return {
-            "incidents": self._incidents,
+            "incidents": list(self._incidents),
             "radius_km": self._radius,
             "nearest_km": self._incidents[0]["km"] if self._incidents else None,
             "home": [self.hass.config.latitude, self.hass.config.longitude],
