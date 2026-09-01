@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import threading
 
 import websockets
@@ -47,6 +48,7 @@ class HomeAssistant:
         self._outbox: asyncio.Queue | None = None
         self._stopping = threading.Event()
         self._id = 0
+        self._task: asyncio.Task | None = None
         self.thread = threading.Thread(target=self._run, name="ha-client", daemon=True)
 
     def start(self) -> None:
@@ -54,8 +56,9 @@ class HomeAssistant:
 
     def shutdown(self) -> None:
         self._stopping.set()
-        if self._loop is not None:
-            self._loop.call_soon_threadsafe(self._loop.stop)
+        loop, task = self._loop, self._task
+        if loop is not None and task is not None:
+            loop.call_soon_threadsafe(task.cancel)
         self.thread.join(timeout=5)
 
     # -- what the panel reads --------------------------------------------------------
@@ -94,15 +97,26 @@ class HomeAssistant:
     def toggle_listen(self) -> None:
         self._call("switch", "toggle", self.entities["listen"])
 
-    def change_volume(self, delta: int) -> None:
-        """Move the player's volume by delta percent.
+    def change_volume(self, step: int) -> None:
+        """Move the player's volume to the next multiple of step, in that direction.
 
         volume_set rather than volume_up: the level is read back from the player's own
         attribute, and not every player integration implements the stepped services.
+
+        The target snaps to a multiple of the step instead of just adding it, because a
+        player may quantise the level it accepts and report back a value a percent or two
+        off. Adding to that reported value drifts a little further on every press; landing
+        on the grid does not.
         """
-        target = max(0.0, min(1.0, (self.status()["volume"] + delta) / 100))
+        current = self.status()["volume"]
+        size = abs(step) or 1
+        if step < 0:
+            target = math.floor((current - 1) / size) * size
+        else:
+            target = math.ceil((current + 1) / size) * size
+        target = max(0, min(100, target))
         self._call("media_player", "volume_set", self.entities["player"],
-                   {"volume_level": round(target, 2)})
+                   {"volume_level": round(target / 100, 2)})
 
     def next_district(self) -> None:
         with self._lock:
@@ -136,10 +150,14 @@ class HomeAssistant:
     # -- the loop --------------------------------------------------------------------
 
     def _run(self) -> None:
-        asyncio.run(self._main())
+        try:
+            asyncio.run(self._main())
+        except asyncio.CancelledError:
+            LOG.debug("Client task cancelled during shutdown")
 
     async def _main(self) -> None:
         self._loop = asyncio.get_running_loop()
+        self._task = asyncio.current_task()
         backoff = BACKOFF_START
         while not self._stopping.is_set():
             try:
@@ -150,7 +168,10 @@ class HomeAssistant:
             self._set_online(False)
             if self._stopping.is_set():
                 return
-            await asyncio.sleep(backoff)
+            try:
+                await asyncio.sleep(backoff)
+            except asyncio.CancelledError:
+                return
             backoff = min(BACKOFF_MAX, backoff * 2)
 
     async def _session(self) -> None:
