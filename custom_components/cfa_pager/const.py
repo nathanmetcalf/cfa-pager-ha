@@ -23,6 +23,14 @@ CONF_HISTORY = "history"
 # How many recent pages to keep for display, matched or not. Kept separate from the
 # callout history because the volume is three orders of magnitude higher.
 CONF_PAGE_HISTORY = "page_history"
+CONF_MEDIA_PLAYER = "media_player"
+CONF_STREAMS = "streams"
+CONF_STREAM_USERNAME = "stream_username"
+CONF_STREAM_PASSWORD = "stream_password"
+CONF_PLAY_SECONDS = "play_seconds"
+CONF_ALERT_ENABLED = "alert_enabled"
+CONF_AUDIO_ENABLED = "audio_enabled"
+
 CONF_INCIDENT_URL = "incident_url"
 CONF_INCIDENT_RADIUS = "incident_radius"
 CONF_INCIDENT_INTERVAL = "incident_interval"
@@ -44,6 +52,12 @@ DEFAULT_PAGE_HISTORY = 50
 # 3 is 128 km and 4 is 64 km. IDR952 is Rainbow at 256 km.
 # Nearby incidents. The default feed is VicEmergency; any GeoJSON feed of point features
 # with similar properties works, which is why the URL is configurable.
+# Audio. Streams are entered as NAME=URL, one per line, and cycled by the select entity.
+DEFAULT_STREAMS: list[str] = []
+DEFAULT_PLAY_SECONDS = 900
+DEFAULT_ALERT_ENABLED = True
+DEFAULT_AUDIO_ENABLED = True
+
 DEFAULT_INCIDENT_URL = "https://emergency.vic.gov.au/public/osom-geojson.json"
 DEFAULT_INCIDENT_RADIUS = 100
 DEFAULT_INCIDENT_INTERVAL = 120
@@ -67,4 +81,4 @@ ATTR_PAGES = "pages"
 
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 
-PLATFORMS = ["sensor", "binary_sensor", "image"]
+PLATFORMS = ["sensor", "binary_sensor", "image", "select", "switch"]

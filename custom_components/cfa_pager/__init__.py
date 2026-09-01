@@ -16,6 +16,7 @@ entry, so an existing setup is not lost.
 from __future__ import annotations
 
 import logging
+import os
 import time
 
 import paho.mqtt.client as mqtt
@@ -30,10 +31,13 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.helpers.typing import ConfigType
 
 from . import lookup
+from .audio import ALERT_URL_PATH, AudioController
 from .const import (
+    CONF_AUDIO_ENABLED,
     CONF_BRIGADES,
     CONF_BROKER,
     CONF_CAPCODES,
@@ -42,6 +46,7 @@ from .const import (
     CONF_HISTORY,
     CONF_PAGE_HISTORY,
     CONF_PORT,
+    CONF_STREAMS,
     CONF_TOPICS,
     DEFAULT_BROKER,
     DEFAULT_CLIENT_ID,
@@ -97,6 +102,27 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
+def parse_streams(entries) -> list[dict]:
+    """Turn NAME=URL strings into [{name, url}].
+
+    A plain URL with no name is accepted and numbered, because forgetting the name should
+    not silently drop a stream.
+    """
+    streams: list[dict] = []
+    for index, raw in enumerate(entries or [], start=1):
+        text = str(raw).strip()
+        if not text:
+            continue
+        if "=" in text:
+            name, _, url = text.partition("=")
+            name, url = name.strip(), url.strip()
+        else:
+            name, url = f"Stream {index}", text
+        if url:
+            streams.append({"name": name or f"Stream {index}", "url": url})
+    return streams
+
+
 class PagerFeed:
     """Owns the MQTT connection and the derived state the entities read."""
 
@@ -121,6 +147,10 @@ class PagerFeed:
         self.history_limit = settings.get(CONF_HISTORY, DEFAULT_HISTORY)
         self.page_limit = settings.get(CONF_PAGE_HISTORY, DEFAULT_PAGE_HISTORY)
         self.deduper = Deduper(settings.get(CONF_DEDUPE_SECONDS, DEFAULT_DEDUPE_SECONDS))
+
+        self.streams = parse_streams(settings.get(CONF_STREAMS) or [])
+        self.stream_index = 0
+        self.audio: AudioController | None = None
 
         self.connected = False
         self.pages_seen = 0
@@ -243,6 +273,9 @@ class PagerFeed:
         self.hass.bus.async_fire(EVENT_PAGE, page)
         if matched:
             self.hass.bus.async_fire(EVENT_CALLOUT, page)
+            if self.audio is not None:
+                # A task, not awaited: the tone and the stream must not hold up the event.
+                self.hass.async_create_task(self.audio.async_on_callout())
         async_dispatcher_send(self.hass, SIGNAL_UPDATE)
 
     def _notify(self) -> None:
@@ -269,7 +302,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     feed = PagerFeed(hass, entry)
+    feed.audio = AudioController(hass, feed)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = feed
+    await _async_register_alert_tone(hass)
 
     await hass.async_add_executor_job(feed.start)
     entry.async_on_unload(
@@ -282,6 +317,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+async def _async_register_alert_tone(hass: HomeAssistant) -> None:
+    """Serve the alert tone without authentication, once per Home Assistant run.
+
+    A speaker fetching the file cannot present a Home Assistant token, so this has to be a
+    static path rather than an authenticated endpoint. Registering twice raises, hence the
+    flag.
+    """
+    if hass.data.setdefault(DOMAIN, {}).get("_tone_registered"):
+        return
+    path = os.path.join(os.path.dirname(__file__), "alert.mp3")
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(ALERT_URL_PATH, path, True)]
+    )
+    hass.data[DOMAIN]["_tone_registered"] = True
+    _LOGGER.debug("Alert tone served at %s", ALERT_URL_PATH)
+
+
 def _async_register_services(hass: HomeAssistant) -> None:
     """Register the domain services once, however many entries exist."""
     if hass.services.has_service(DOMAIN, SERVICE_CLEAR_HISTORY):
@@ -290,7 +342,9 @@ def _async_register_services(hass: HomeAssistant) -> None:
     async def _clear_history(call: ServiceCall) -> None:
         callouts = call.data.get(ATTR_CALLOUTS, True)
         pages = call.data.get(ATTR_PAGES, True)
-        for feed in hass.data.get(DOMAIN, {}).values():
+        for key, feed in hass.data.get(DOMAIN, {}).items():
+            if key.startswith("_"):
+                continue
             feed.clear_history(callouts=callouts, pages=pages)
 
     hass.services.async_register(

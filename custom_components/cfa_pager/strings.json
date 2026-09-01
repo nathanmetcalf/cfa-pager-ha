@@ -59,7 +59,14 @@
           "incident_url": "Nearby incidents feed URL",
           "incident_radius": "Incident radius (km)",
           "incident_interval": "Incident poll interval (seconds)",
-          "incident_max": "Maximum incidents to keep"
+          "incident_max": "Maximum incidents to keep",
+          "media_player": "Media player for audio",
+          "streams": "Scanner streams",
+          "stream_username": "Stream username",
+          "stream_password": "Stream password",
+          "play_seconds": "Keep listening for (seconds)",
+          "audio_enabled": "Play audio on a callout",
+          "alert_enabled": "Sound the alert tone"
         },
         "data_description": {
           "dedupe_seconds": "The same brigade and message text arriving twice inside this window counts once. 0 disables it.",
@@ -76,7 +83,14 @@
           "incident_url": "A GeoJSON feed of incidents. Defaults to VicEmergency. Leave blank to turn the incidents sensor off.",
           "incident_radius": "Straight-line distance from Home Assistant's own home coordinates, so nothing else needs configuring.",
           "incident_interval": "How often to poll the feed.",
-          "incident_max": "Nearest first, so a low number keeps the closest ones."
+          "incident_max": "Nearest first, so a low number keeps the closest ones.",
+          "media_player": "Any media player. A player that supports announcements will duck the stream for the alert tone instead of stopping it.",
+          "streams": "One per line as NAME=URL, for example D17=https://example.com/18995.mp3. The select entity switches between them.",
+          "stream_username": "For a stream behind HTTP Basic auth. Left blank, none is sent.",
+          "stream_password": "Injected into the stream URL when playing, not stored in the URL.",
+          "play_seconds": "How long the stream stays open after a callout. Each further callout extends it. A listen started by hand ignores this and plays until switched off.",
+          "audio_enabled": "Turn off to keep the entities but stay silent.",
+          "alert_enabled": "Turn off to open the stream with no tone."
         }
       }
     },

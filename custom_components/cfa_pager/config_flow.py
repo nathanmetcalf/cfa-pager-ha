@@ -26,8 +26,15 @@ from .const import (
     CONF_CLIENT_ID,
     CONF_DEDUPE_SECONDS,
     CONF_HISTORY,
+    CONF_MEDIA_PLAYER,
     CONF_PAGE_HISTORY,
+    CONF_PLAY_SECONDS,
+    CONF_STREAMS,
+    CONF_STREAM_PASSWORD,
+    CONF_STREAM_USERNAME,
     CONF_PORT,
+    CONF_ALERT_ENABLED,
+    CONF_AUDIO_ENABLED,
     CONF_INCIDENT_INTERVAL,
     CONF_INCIDENT_MAX,
     CONF_INCIDENT_RADIUS,
@@ -41,7 +48,11 @@ from .const import (
     DEFAULT_DEDUPE_SECONDS,
     DEFAULT_HISTORY,
     DEFAULT_PAGE_HISTORY,
+    DEFAULT_PLAY_SECONDS,
+    DEFAULT_STREAMS,
     DEFAULT_PORT,
+    DEFAULT_ALERT_ENABLED,
+    DEFAULT_AUDIO_ENABLED,
     DEFAULT_INCIDENT_INTERVAL,
     DEFAULT_INCIDENT_MAX,
     DEFAULT_INCIDENT_RADIUS,
@@ -85,49 +96,70 @@ def _connection_schema(defaults: dict) -> vol.Schema:
 
 
 def _tuning_schema(defaults: dict) -> dict:
+    """Everything that is not connection settings: matching, audio, incidents, radar."""
+
+    def default(key, fallback):
+        return defaults.get(key, fallback)
+
     return {
+        # --- matching -------------------------------------------------------------
         vol.Required(
-            CONF_DEDUPE_SECONDS,
-            default=defaults.get(CONF_DEDUPE_SECONDS, DEFAULT_DEDUPE_SECONDS),
+            CONF_DEDUPE_SECONDS, default=default(CONF_DEDUPE_SECONDS, DEFAULT_DEDUPE_SECONDS)
         ): vol.All(vol.Coerce(float), vol.Range(min=0, max=3600)),
         vol.Required(
-            CONF_HISTORY, default=defaults.get(CONF_HISTORY, DEFAULT_HISTORY)
+            CONF_HISTORY, default=default(CONF_HISTORY, DEFAULT_HISTORY)
         ): vol.All(vol.Coerce(int), vol.Range(min=1, max=1000)),
         vol.Required(
-            CONF_PAGE_HISTORY,
-            default=defaults.get(CONF_PAGE_HISTORY, DEFAULT_PAGE_HISTORY),
+            CONF_PAGE_HISTORY, default=default(CONF_PAGE_HISTORY, DEFAULT_PAGE_HISTORY)
         ): vol.All(vol.Coerce(int), vol.Range(min=0, max=500)),
+
+        # --- audio ----------------------------------------------------------------
         vol.Optional(
-            CONF_RADAR_PRODUCT,
-            default=defaults.get(CONF_RADAR_PRODUCT, DEFAULT_RADAR_PRODUCT),
+            CONF_MEDIA_PLAYER, default=default(CONF_MEDIA_PLAYER, "")
+        ): selector.EntitySelector(selector.EntitySelectorConfig(domain="media_player")),
+        vol.Optional(
+            CONF_STREAMS, default=default(CONF_STREAMS, DEFAULT_STREAMS)
+        ): TEXT_LIST,
+        vol.Optional(
+            CONF_STREAM_USERNAME, default=default(CONF_STREAM_USERNAME, "")
+        ): str,
+        vol.Optional(
+            CONF_STREAM_PASSWORD, default=default(CONF_STREAM_PASSWORD, "")
+        ): PASSWORD,
+        vol.Required(
+            CONF_PLAY_SECONDS, default=default(CONF_PLAY_SECONDS, DEFAULT_PLAY_SECONDS)
+        ): vol.All(vol.Coerce(int), vol.Range(min=30, max=14400)),
+        vol.Optional(
+            CONF_AUDIO_ENABLED, default=default(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)
+        ): bool,
+        vol.Optional(
+            CONF_ALERT_ENABLED, default=default(CONF_ALERT_ENABLED, DEFAULT_ALERT_ENABLED)
+        ): bool,
+
+        # --- nearby incidents -----------------------------------------------------
+        vol.Optional(
+            CONF_INCIDENT_URL, default=default(CONF_INCIDENT_URL, DEFAULT_INCIDENT_URL)
         ): str,
         vol.Required(
-            CONF_INCIDENT_INTERVAL,
-    CONF_INCIDENT_MAX,
-    CONF_INCIDENT_RADIUS,
-    CONF_INCIDENT_URL,
-    CONF_RADAR_FRAMES,
-            default=defaults.get(CONF_RADAR_FRAMES, DEFAULT_RADAR_FRAMES),
-        ): vol.All(vol.Coerce(int), vol.Range(min=2, max=20)),
-        vol.Optional(
-            CONF_INCIDENT_URL,
-            default=defaults.get(CONF_INCIDENT_URL, DEFAULT_INCIDENT_URL),
-        ): str,
-        vol.Required(
-            CONF_INCIDENT_RADIUS,
-            default=defaults.get(CONF_INCIDENT_RADIUS, DEFAULT_INCIDENT_RADIUS),
+            CONF_INCIDENT_RADIUS, default=default(CONF_INCIDENT_RADIUS, DEFAULT_INCIDENT_RADIUS)
         ): vol.All(vol.Coerce(int), vol.Range(min=1, max=2000)),
         vol.Required(
             CONF_INCIDENT_INTERVAL,
-            default=defaults.get(CONF_INCIDENT_INTERVAL, DEFAULT_INCIDENT_INTERVAL),
+            default=default(CONF_INCIDENT_INTERVAL, DEFAULT_INCIDENT_INTERVAL),
         ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
         vol.Required(
-            CONF_INCIDENT_MAX,
-            default=defaults.get(CONF_INCIDENT_MAX, DEFAULT_INCIDENT_MAX),
+            CONF_INCIDENT_MAX, default=default(CONF_INCIDENT_MAX, DEFAULT_INCIDENT_MAX)
         ): vol.All(vol.Coerce(int), vol.Range(min=1, max=200)),
+
+        # --- rain radar -----------------------------------------------------------
+        vol.Optional(
+            CONF_RADAR_PRODUCT, default=default(CONF_RADAR_PRODUCT, DEFAULT_RADAR_PRODUCT)
+        ): str,
         vol.Required(
-            CONF_RADAR_INTERVAL,
-            default=defaults.get(CONF_RADAR_INTERVAL, DEFAULT_RADAR_INTERVAL),
+            CONF_RADAR_FRAMES, default=default(CONF_RADAR_FRAMES, DEFAULT_RADAR_FRAMES)
+        ): vol.All(vol.Coerce(int), vol.Range(min=2, max=20)),
+        vol.Required(
+            CONF_RADAR_INTERVAL, default=default(CONF_RADAR_INTERVAL, DEFAULT_RADAR_INTERVAL)
         ): vol.All(vol.Coerce(int), vol.Range(min=60, max=3600)),
     }
 
@@ -205,6 +237,13 @@ class CfaPagerConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_PAGE_HISTORY: DEFAULT_PAGE_HISTORY,
                         CONF_RADAR_INTERVAL: DEFAULT_RADAR_INTERVAL,
                         CONF_RADAR_FRAMES: DEFAULT_RADAR_FRAMES,
+                        CONF_MEDIA_PLAYER: "",
+                        CONF_STREAMS: DEFAULT_STREAMS,
+                        CONF_STREAM_USERNAME: "",
+                        CONF_STREAM_PASSWORD: "",
+                        CONF_PLAY_SECONDS: DEFAULT_PLAY_SECONDS,
+                        CONF_AUDIO_ENABLED: DEFAULT_AUDIO_ENABLED,
+                        CONF_ALERT_ENABLED: DEFAULT_ALERT_ENABLED,
                         CONF_INCIDENT_URL: DEFAULT_INCIDENT_URL,
                         CONF_INCIDENT_RADIUS: DEFAULT_INCIDENT_RADIUS,
                         CONF_INCIDENT_INTERVAL: DEFAULT_INCIDENT_INTERVAL,
@@ -254,6 +293,13 @@ class CfaPagerConfigFlow(ConfigFlow, domain=DOMAIN):
                 ),
                 CONF_RADAR_INTERVAL: import_data.get(CONF_RADAR_INTERVAL, DEFAULT_RADAR_INTERVAL),
                 CONF_RADAR_FRAMES: import_data.get(CONF_RADAR_FRAMES, DEFAULT_RADAR_FRAMES),
+                CONF_MEDIA_PLAYER: import_data.get(CONF_MEDIA_PLAYER, ""),
+                CONF_STREAMS: import_data.get(CONF_STREAMS, DEFAULT_STREAMS),
+                CONF_STREAM_USERNAME: import_data.get(CONF_STREAM_USERNAME, ""),
+                CONF_STREAM_PASSWORD: import_data.get(CONF_STREAM_PASSWORD, ""),
+                CONF_PLAY_SECONDS: import_data.get(CONF_PLAY_SECONDS, DEFAULT_PLAY_SECONDS),
+                CONF_AUDIO_ENABLED: import_data.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED),
+                CONF_ALERT_ENABLED: import_data.get(CONF_ALERT_ENABLED, DEFAULT_ALERT_ENABLED),
                 CONF_INCIDENT_URL: import_data.get(CONF_INCIDENT_URL, DEFAULT_INCIDENT_URL),
                 CONF_INCIDENT_RADIUS: import_data.get(CONF_INCIDENT_RADIUS, DEFAULT_INCIDENT_RADIUS),
                 CONF_INCIDENT_INTERVAL: import_data.get(CONF_INCIDENT_INTERVAL, DEFAULT_INCIDENT_INTERVAL),
