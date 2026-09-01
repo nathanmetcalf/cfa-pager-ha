@@ -76,7 +76,7 @@
           "tls": "Turn on for a broker on 8883. pocsag.info does not offer TLS.",
           "tls_insecure": "Only for a broker with a self-signed certificate. Leave off otherwise.",
           "client_id": "Must differ from any other client on the same broker, or the two connections will keep kicking each other off.",
-          "page_history": "Shown by sensor.cfa_recent_pages, all traffic and not just your brigades. Set to 0 to turn the entity off. Exclude it from the recorder: it changes on every page, roughly 670 times a day.",
+          "page_history": "Shown by sensor.cfa_pager_recent_pages, all traffic and not just your brigades. Set to 0 to turn the entity off. Exclude it from the recorder: it changes on every page, roughly 670 times a day.",
           "radar_product": "Bureau of Meteorology radar id, written as IDR then the station number then the range digit. Range 1 is 512 km, 2 is 256 km, 3 is 128 km, 4 is 64 km. IDR952 is Rainbow at 256 km. Leave blank to turn the radar off.",
           "radar_frames": "How many recent scans to animate. Six covers about half an hour.",
           "radar_interval": "The Bureau publishes a scan every few minutes, so rebuilding faster than 300 seconds gains nothing.",
