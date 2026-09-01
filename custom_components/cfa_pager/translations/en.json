@@ -1,0 +1,76 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "CFA Pager",
+        "description": "Watch a POCSAG pager feed and raise Home Assistant events when your brigades are paged.\n\nEnter brigades as station names (LAHARUM), alphacodes (LAHA) or raw capcodes (575488). The client ID must differ from any other client on the same broker.",
+        "data": {
+          "broker": "Broker host",
+          "port": "Broker port",
+          "client_id": "Client ID",
+          "topics": "Topics to subscribe to",
+          "brigades": "Brigades to alert on",
+          "username": "Username",
+          "password": "Password",
+          "tls": "Use TLS",
+          "tls_insecure": "Skip TLS certificate verification"
+        },
+        "data_description": {
+          "topics": "agency/# gives each page once. A bare # delivers every page three times, because the feed republishes under message_type and incident_type as well.",
+          "brigades": "Station names, alphacodes or capcodes. Anything that cannot be resolved is reported rather than ignored.",
+          "username": "Leave blank for an anonymous broker. pocsag.info accepts anonymous connections.",
+          "password": "Stored in Home Assistant's configuration storage, in plain text, like every other integration credential.",
+          "tls": "Turn on for a broker on 8883. pocsag.info does not offer TLS.",
+          "tls_insecure": "Only for a broker with a self-signed certificate. Leave off otherwise."
+        }
+      }
+    },
+    "error": {
+      "unresolved": "Could not resolve: {unresolved}. Use a station name, an alphacode, or a numeric capcode.",
+      "no_brigades": "Add at least one brigade, or nothing will ever alert.",
+      "cannot_connect": "Could not reach the broker. Check the host, the port, and whether TLS is required.",
+      "invalid_auth": "The broker rejected those credentials."
+    },
+    "abort": {
+      "already_configured": "This broker is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "CFA Pager options",
+        "description": "Currently watching: {resolved}\n\nSaving tests the connection, then reloads the integration, so changes apply immediately without restarting Home Assistant.",
+        "data": {
+          "brigades": "Brigades to alert on",
+          "topics": "Topics to subscribe to",
+          "dedupe_seconds": "Duplicate suppression window (seconds)",
+          "history": "Callouts to keep in history",
+          "broker": "Broker host",
+          "port": "Broker port",
+          "client_id": "Client ID",
+          "username": "Username",
+          "password": "Password",
+          "tls": "Use TLS",
+          "tls_insecure": "Skip TLS certificate verification",
+          "page_history": "Recent pages to keep for display"
+        },
+        "data_description": {
+          "dedupe_seconds": "The same brigade and message text arriving twice inside this window counts once. 0 disables it.",
+          "history": "Kept in an attribute and restored across restarts, so no database is needed.",
+          "username": "Leave blank for an anonymous broker. pocsag.info accepts anonymous connections.",
+          "password": "Stored in Home Assistant's configuration storage, in plain text, like every other integration credential.",
+          "tls": "Turn on for a broker on 8883. pocsag.info does not offer TLS.",
+          "tls_insecure": "Only for a broker with a self-signed certificate. Leave off otherwise.",
+          "client_id": "Must differ from any other client on the same broker, or the two connections will keep kicking each other off.",
+          "page_history": "Shown by sensor.cfa_recent_pages, all traffic and not just your brigades. Set to 0 to turn the entity off. Exclude it from the recorder: it changes on every page, roughly 670 times a day."
+        }
+      }
+    },
+    "error": {
+      "unresolved": "Could not resolve: {unresolved}. Use a station name, an alphacode, or a numeric capcode.",
+      "no_brigades": "Add at least one brigade, or nothing will ever alert.",
+      "cannot_connect": "Could not reach the broker. Check the host, the port, and whether TLS is required.",
+      "invalid_auth": "The broker rejected those credentials."
+    }
+  }
+}
