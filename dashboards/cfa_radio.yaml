@@ -20,17 +20,20 @@ views:
     path: radio
     type: custom:grid-layout
     layout:
-      # Three columns: wide left for the message text, incidents down the middle spanning
-      # both body rows, weather and radar stacked on the right. minmax(0, ...) lets a track
-      # shrink below its content's minimum width; plain fr tracks refuse to, and the radar
-      # image's intrinsic size then pushes the whole grid wider than the viewport.
-      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 0.9fr)
+      # Two columns, as on the Pi: callouts over traffic on the left, incidents over radar
+      # on the right. Fire danger and fire weather live in the status row, where the Pi had
+      # them, rather than as a panel of their own.
+      #
+      # minmax(0, ...) lets a track shrink below its content's minimum width. Plain fr
+      # tracks refuse to, and the radar image's intrinsic size then pushes the whole grid
+      # wider than the viewport.
+      grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr)
       grid-template-rows: auto auto 1fr 1.4fr
       grid-template-areas: |
-        "header header header"
-        "status status status"
-        "callouts incidents weather"
-        "traffic incidents radar"
+        "header header"
+        "status status"
+        "callouts incidents"
+        "traffic radar"
       height: calc(100vh - 56px)
       grid-gap: 8px
       padding: 8px
@@ -38,14 +41,13 @@ views:
         # One column on a phone, in reading order.
         "(max-width: 1000px)":
           grid-template-columns: minmax(0, 1fr)
-          grid-template-rows: auto auto auto auto auto auto auto
+          grid-template-rows: auto auto auto auto auto auto
           grid-template-areas: |
             "header"
             "status"
             "callouts"
             "incidents"
             "traffic"
-            "weather"
             "radar"
           height: auto
 
@@ -96,25 +98,41 @@ views:
       - type: grid
         view_layout:
           grid-area: status
-        columns: 4
+        columns: 6
         square: false
         cards:
           - type: tile
             entity: sensor.cfa_pager_callouts_today
             name: Callouts today
             icon: mdi:fire-truck
+            color: red
           - type: tile
             entity: sensor.cfa_pager_last_callout
             name: Last callout
             icon: mdi:clock-alert-outline
+            color: amber
           - type: tile
             entity: binary_sensor.cfa_pager_feed_connected
             name: Feed
             icon: mdi:radio-tower
+            color: green
           - type: tile
             entity: sensor.cfa_pager_pages_seen
             name: Pages seen
             icon: mdi:message-text-outline
+            color: blue
+          - type: tile
+            entity: sensor.wartook_forcast_fire_danger_0
+            name: Fire danger
+            icon: mdi:fire-alert
+            color: orange
+          # Not a tile: a tile shows one value, and the Pi's fire weather tile carried a
+          # headline plus a line of detail. A small Markdown card is the closest match.
+          - type: markdown
+            content: |
+              {%- set w = 'weather.wartook' %}
+              **{{ state_attr(w,'temperature') | round(1) }}° &nbsp; {{ state_attr(w,'humidity') }}%**
+              {{ state_attr(w,'wind_bearing') }} {{ state_attr(w,'wind_speed') | round(0) }} km/h · rain {{ states('sensor.wartook_forcast_rain_chance_0') }}%
 
       # ---- your callouts ----------------------------------------------------------
       - type: vertical-stack
@@ -133,7 +151,7 @@ views:
               | Time | Brigade | Message |
               |:--|:--|:--|
               {% for c in callouts -%}
-              | {{ c.ts | timestamp_custom('%d %b %H:%M') }} | **{{ c.brigade or c.description }}** | {{ c.text }} |
+              | {{ c.ts | timestamp_custom('%d %b %H:%M') }} | 🔴 **{{ c.brigade or c.description }}** | {{ c.text }} |
               {% endfor %}
               {%- else -%}
               _No callouts recorded._
@@ -156,33 +174,11 @@ views:
               | Dist | Type | Location |
               |:--|:--|:--|
               {% for r in rows[:12] -%}
-              | **{{ r.km }}km {{ r.dir }}** | {{ (r.category or r.feed_type)[:18] }} | {{ (r.location or r.name)[:38] }} |
+              | **{{ r.km }}km {{ r.dir }}** | {% if 'fire' in (r.category ~ ' ' ~ r.name) | lower %}🔴{% else %}🔵{% endif %} {{ (r.category or r.feed_type)[:16] }} | {{ (r.location or r.name)[:36] }} |
               {% endfor %}
               {%- else -%}
               _Nothing going within {{ state_attr(e,'radius_km') }} km._
               {%- endif %}
-
-      # ---- fire weather -----------------------------------------------------------
-      - type: vertical-stack
-        view_layout:
-          grid-area: weather
-        cards:
-          - type: heading
-            heading: Fire weather
-            heading_style: title
-            icon: mdi:weather-windy
-          - type: markdown
-            content: |
-              {%- set w = 'weather.wartook' %}
-              {%- set fdr = states('sensor.wartook_forcast_fire_danger_0') %}
-              | | |
-              |:--|--:|
-              | Temperature | **{{ state_attr(w,'temperature') }} °C** |
-              | Humidity | **{{ state_attr(w,'humidity') }} %** |
-              | Wind | **{{ state_attr(w,'wind_bearing') }} {{ state_attr(w,'wind_speed') | round(0) }} km/h** |
-              | Conditions | {{ states(w) | title }} |
-              | Rain chance | {{ states('sensor.wartook_forcast_rain_chance_0') }} % |
-              | Fire danger | {% if fdr in ['unknown','unavailable'] %}not in season{% else %}**{{ fdr }}**{% endif %} |
 
       # ---- all pager traffic ------------------------------------------------------
       - type: vertical-stack
@@ -197,12 +193,13 @@ views:
             content: |
               {%- set limit = 12 %}
               {%- set trim = 84 %}
+              {%- set dots = {'CFA':'🔵','SES':'🟠','FRV':'🟢'} %}
               {%- set pages = (state_attr('sensor.cfa_pager_recent_pages','pages') or [])[:limit] %}
               {% if pages -%}
               | Time | Agency | Code | Message |
               |:--|:--|:--|:--|
               {% for p in pages -%}
-              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ p.agency }} | {{ p.alphacode or p.capcode }} | {{ p.text[:trim] }}{% if p.text | length > trim %}…{% endif %} |
+              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ dots.get(p.agency,'⚪') }} {{ p.agency }} | **{{ p.alphacode or p.capcode }}** | {{ p.text[:trim] }}{% if p.text | length > trim %}…{% endif %} |
               {% endfor %}
               {%- else -%}
               _Nothing received yet._
