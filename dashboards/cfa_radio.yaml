@@ -1,0 +1,173 @@
+# CFA Pager Radio dashboard, mirroring the Raspberry Pi wall display.
+#
+# Saved with: tools/ha_dashboard.py save cfa-radio dashboards/cfa_radio.yaml
+#
+# Three things on the Pi display have no Home Assistant equivalent yet and are left out
+# rather than faked: the stream state and volume (audio still lives on the Pi), the
+# incident list (no VicEmergency sensor exists yet), and the red and blue flash, which
+# needs card-mod or a custom card. A conditional alert banner stands in for the flash.
+_title: CFA Pager Radio
+_icon: mdi:fire-truck
+
+views:
+  - title: Radio
+    path: radio
+    type: sections
+    max_columns: 2
+    dense_section_placement: true
+    sections:
+      # ---- header and alerts, full width -----------------------------------------
+      - type: grid
+        column_span: 2
+        cards:
+          - type: markdown
+            content: >-
+              # CFA Pager Radio &nbsp;&nbsp; {{ now().strftime('%H:%M') }}
+
+              {% set watching = state_attr('sensor.cfa_pager_last_callout','watching') or [] -%}
+              watching {{ watching | count }}:
+              {{ watching | map('regex_replace','\s*\(.*\)','') | join('  ') }}
+
+          - type: markdown
+            visibility:
+              - condition: template
+                value_template: >-
+                  {% set last = states('sensor.cfa_pager_last_callout') %}
+                  {{ last not in ['unknown','unavailable'] and
+                     (now() - as_datetime(last)).total_seconds() < 900 }}
+            content: >-
+              {% set c = (state_attr('sensor.cfa_pager_last_callout','callouts') or [{}])[0] %}
+              <ha-alert alert-type="error" title="CALLOUT {{ c.get('brigade','') }}">
+              {{ c.get('text','') }}
+              </ha-alert>
+
+          - type: markdown
+            visibility:
+              - condition: state
+                entity: binary_sensor.cfa_pager_feed_connected
+                state: "off"
+            content: >-
+              <ha-alert alert-type="error" title="Pager feed disconnected">
+              No connection to the pager broker, so callouts will be missed.
+              </ha-alert>
+
+          - type: markdown
+            visibility:
+              - condition: state
+                entity: binary_sensor.cfa_pager_feed_stale
+                state: "on"
+            content: >-
+              <ha-alert alert-type="warning" title="Pager feed stale">
+              Connected, but nothing has arrived for over 30 minutes.
+              </ha-alert>
+
+      # ---- status tiles ------------------------------------------------------------
+      - type: grid
+        column_span: 2
+        cards:
+          - type: heading
+            heading: Status
+            heading_style: title
+            icon: mdi:gauge
+          - type: tile
+            entity: sensor.cfa_pager_callouts_today
+            name: Callouts today
+            icon: mdi:fire-truck
+          - type: tile
+            entity: sensor.cfa_pager_last_callout
+            name: Last callout
+            icon: mdi:clock-alert-outline
+          - type: tile
+            entity: binary_sensor.cfa_pager_feed_connected
+            name: Feed
+            icon: mdi:radio-tower
+          - type: tile
+            entity: sensor.cfa_pager_pages_seen
+            name: Pages seen
+            icon: mdi:message-text-outline
+          - type: tile
+            entity: sensor.wartook_forcast_fire_danger_0
+            name: Fire danger
+            icon: mdi:fire-alert
+          - type: tile
+            entity: weather.wartook
+            name: Wartook
+            icon: mdi:weather-partly-rainy
+
+      # ---- your callouts -----------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Your callouts
+            heading_style: title
+            icon: mdi:fire-truck
+          - type: markdown
+            content: >-
+              {% set limit = 8 %}
+              {% set callouts = (state_attr('sensor.cfa_pager_last_callout','callouts') or [])[:limit] %}
+              {% if callouts %}
+              | Time | Brigade | Message |
+              |---|---|---|
+              {% for c in callouts -%}
+              | {{ c.ts | timestamp_custom('%d %b %H:%M') }} | **{{ c.brigade or c.description }}** | {{ c.text }} |
+              {% endfor %}
+              {% else %}
+              _No callouts recorded._
+              {% endif %}
+
+      # ---- fire weather ------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Fire weather
+            heading_style: title
+            icon: mdi:weather-windy
+          - type: markdown
+            content: >-
+              {% set w = 'weather.wartook' %}
+              {% set fdr = states('sensor.wartook_forcast_fire_danger_0') %}
+              | | |
+              |---|---|
+              | Temperature | **{{ state_attr(w,'temperature') }} °C** |
+              | Humidity | **{{ state_attr(w,'humidity') }} %** |
+              | Wind | **{{ state_attr(w,'wind_bearing') }} {{ state_attr(w,'wind_speed') }} km/h** |
+              | Conditions | {{ states(w) }} |
+              | Fire danger | {% if fdr in ['unknown','unavailable'] %}_not published (out of season)_{% else %}**{{ fdr }}**{% endif %} |
+              | Rain chance today | {{ states('sensor.wartook_forcast_rain_chance_0') }} % |
+
+              _Bureau of Meteorology, Wartook._
+
+      # ---- all pager traffic -------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: All pager traffic
+            heading_style: title
+            icon: mdi:format-list-bulleted
+          - type: markdown
+            content: >-
+              {% set limit = 12 %}
+              {% set pages = (state_attr('sensor.cfa_pager_recent_pages','pages') or [])[:limit] %}
+              {% if pages %}
+              | Time | Agency | Code | Message |
+              |---|---|---|---|
+              {% for p in pages -%}
+              | {{ p.ts | timestamp_custom('%H:%M:%S') }} | {{ p.agency }} | {{ p.alphacode or p.capcode }} | {{ p.text }} |
+              {% endfor %}
+              {% else %}
+              _Nothing received yet._
+              {% endif %}
+
+      # ---- rain radar --------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Rain radar
+            heading_style: title
+            icon: mdi:radar
+          - type: markdown
+            # Served by the Pi, which builds the animated loop from BOM's public FTP. The
+            # query string changes once a minute so the browser refetches instead of
+            # holding a stale frame for hours.
+            content: >-
+              ![Rainbow 256km radar](http://172.20.20.62:8080/radar.gif?t={{ (now().timestamp() / 60) | int }})

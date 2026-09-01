@@ -1,5 +1,18 @@
 # Dashboard cards
 
+A complete dashboard mirroring a wall display is in
+[`dashboards/cfa_radio.yaml`](../dashboards/cfa_radio.yaml). Install it with:
+
+```bash
+python3 tools/ha_dashboard.py save cfa-radio dashboards/cfa_radio.yaml
+```
+
+That creates a storage-mode dashboard over the WebSocket API, so it needs no restart and
+stays editable in the UI. It includes conditional banners for a recent callout, a
+disconnected feed and a stale feed, and pulls an animated radar loop from a URL you set.
+
+The individual cards below are for building your own.
+
 The callout and page lists live in entity **attributes**, because a Home Assistant state is
 capped at 255 characters. Tile and entity cards can only show a state, which is why they
 show a count. A Markdown card renders the lists.
