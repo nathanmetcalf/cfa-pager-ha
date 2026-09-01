@@ -1,0 +1,19 @@
+clear_history:
+  name: Clear history
+  description: >-
+    Forget stored callouts and recent pages. Both lists are held in entity attributes and
+    restored across restarts, so testing a fresh install otherwise leaves synthetic pages
+    in the history for good.
+  fields:
+    callouts:
+      name: Clear callouts
+      description: Forget the callout history and the last callout.
+      default: true
+      selector:
+        boolean:
+    pages:
+      name: Clear recent pages
+      description: Forget the recent pages list.
+      default: true
+      selector:
+        boolean:

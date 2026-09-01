@@ -39,6 +39,10 @@ FEED_STALE_SECONDS = 1800
 
 DEFAULT_CLIENT_ID = "ha-cfa-pager"
 
+SERVICE_CLEAR_HISTORY = "clear_history"
+ATTR_CALLOUTS = "callouts"
+ATTR_PAGES = "pages"
+
 SIGNAL_UPDATE = f"{DOMAIN}_update"
 
 PLATFORMS = ["sensor", "binary_sensor"]

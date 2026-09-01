@@ -72,5 +72,21 @@
       "cannot_connect": "Could not reach the broker. Check the host, the port, and whether TLS is required.",
       "invalid_auth": "The broker rejected those credentials."
     }
+  },
+  "services": {
+    "clear_history": {
+      "name": "Clear history",
+      "description": "Forget stored callouts and recent pages.",
+      "fields": {
+        "callouts": {
+          "name": "Clear callouts",
+          "description": "Forget the callout history and the last callout."
+        },
+        "pages": {
+          "name": "Clear recent pages",
+          "description": "Forget the recent pages list."
+        }
+      }
+    }
   }
 }

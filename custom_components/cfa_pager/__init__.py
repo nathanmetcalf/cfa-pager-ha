@@ -27,7 +27,7 @@ from homeassistant.const import (
     CONF_USERNAME,
     EVENT_HOMEASSISTANT_STOP,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import ConfigType
@@ -58,6 +58,9 @@ from .const import (
     EVENT_PAGE,
     PLATFORMS,
     SIGNAL_UPDATE,
+    ATTR_CALLOUTS,
+    ATTR_PAGES,
+    SERVICE_CLEAR_HISTORY,
 )
 from .matcher import Deduper, dedupe_key, parse_page
 
@@ -127,6 +130,18 @@ class PagerFeed:
         self.callouts: list[dict] = []
         self.pages: list[dict] = []
         self._client: mqtt.Client | None = None
+
+    def clear_history(self, callouts: bool = True, pages: bool = True) -> None:
+        """Forget stored callouts and pages. Useful after testing a fresh install."""
+        if callouts:
+            self.callouts.clear()
+            self.last_callout = None
+        if pages:
+            self.pages.clear()
+        _LOGGER.info(
+            "Cleared history (callouts=%s, pages=%s)", callouts, pages
+        )
+        async_dispatcher_send(self.hass, SIGNAL_UPDATE)
 
     # -- lifecycle -------------------------------------------------------------------
 
@@ -263,7 +278,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Saving options reloads the entry, so brigade changes apply without a restart.
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _async_register_services(hass)
     return True
+
+
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register the domain services once, however many entries exist."""
+    if hass.services.has_service(DOMAIN, SERVICE_CLEAR_HISTORY):
+        return
+
+    async def _clear_history(call: ServiceCall) -> None:
+        callouts = call.data.get(ATTR_CALLOUTS, True)
+        pages = call.data.get(ATTR_PAGES, True)
+        for feed in hass.data.get(DOMAIN, {}).values():
+            feed.clear_history(callouts=callouts, pages=pages)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CLEAR_HISTORY,
+        _clear_history,
+        schema=vol.Schema(
+            {
+                vol.Optional(ATTR_CALLOUTS, default=True): cv.boolean,
+                vol.Optional(ATTR_PAGES, default=True): cv.boolean,
+            }
+        ),
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
