@@ -180,6 +180,18 @@ python3 tools/replay.py --raw /path/to/raw.jsonl --history /path/to/history.db
 `tools/deploy.sh` copies the integration to a Home Assistant config directory, validates
 the configuration over the REST API, and optionally restarts.
 
+## If you fork or publish this
+
+The HACS validation job in CI only runs when the repository is public: the HACS action
+reads `hacs.json` and the manifest over unauthenticated HTTP, so on a private repository
+both content checks fail with "expected a dictionary. Got None" regardless of what those
+files contain. Going public is also the only state in which anyone can install from it.
+
+The `brands` check is ignored deliberately. It requires the integration to be listed in the
+[home-assistant/brands](https://github.com/home-assistant/brands) repository, which is a
+pull request against a repo you do not own and only matters for inclusion in the default
+HACS store, not for a custom repository.
+
 ## Licence
 
 MIT.

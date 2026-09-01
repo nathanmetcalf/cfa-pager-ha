@@ -17,6 +17,12 @@ jobs:
   hacs:
     name: HACS
     runs-on: ubuntu-latest
+    # The HACS action reads hacs.json and the manifest over unauthenticated HTTP, which
+    # returns nothing for a private repository, so both content checks fail with
+    # "expected a dictionary. Got None" no matter what those files contain. It only has
+    # anything to say once the repository is public, which is also the only state in which
+    # anyone can install from it. Remove this condition when the repo goes public.
+    if: github.event.repository.visibility == 'public'
     steps:
       - uses: actions/checkout@v4
       - uses: hacs/action@main
