@@ -22,3 +22,7 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # The brands check requires the integration to be listed in the
+          # home-assistant/brands repository, which is a pull request against a repo we do
+          # not own and only matters for inclusion in the default HACS store.
+          ignore: brands
