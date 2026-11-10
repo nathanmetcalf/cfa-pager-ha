@@ -30,8 +30,6 @@ from .const import (
     CONF_PAGE_HISTORY,
     CONF_PLAY_SECONDS,
     CONF_STREAMS,
-    CONF_STREAM_PASSWORD,
-    CONF_STREAM_USERNAME,
     CONF_PORT,
     CONF_ALERT_ENABLED,
     CONF_AUDIO_ENABLED,
@@ -120,12 +118,6 @@ def _tuning_schema(defaults: dict) -> dict:
         vol.Optional(
             CONF_STREAMS, default=default(CONF_STREAMS, DEFAULT_STREAMS)
         ): TEXT_LIST,
-        vol.Optional(
-            CONF_STREAM_USERNAME, default=default(CONF_STREAM_USERNAME, "")
-        ): str,
-        vol.Optional(
-            CONF_STREAM_PASSWORD, default=default(CONF_STREAM_PASSWORD, "")
-        ): PASSWORD,
         vol.Required(
             CONF_PLAY_SECONDS, default=default(CONF_PLAY_SECONDS, DEFAULT_PLAY_SECONDS)
         ): vol.All(vol.Coerce(int), vol.Range(min=30, max=14400)),
@@ -239,8 +231,6 @@ class CfaPagerConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_RADAR_FRAMES: DEFAULT_RADAR_FRAMES,
                         CONF_MEDIA_PLAYER: "",
                         CONF_STREAMS: DEFAULT_STREAMS,
-                        CONF_STREAM_USERNAME: "",
-                        CONF_STREAM_PASSWORD: "",
                         CONF_PLAY_SECONDS: DEFAULT_PLAY_SECONDS,
                         CONF_AUDIO_ENABLED: DEFAULT_AUDIO_ENABLED,
                         CONF_ALERT_ENABLED: DEFAULT_ALERT_ENABLED,
@@ -295,8 +285,6 @@ class CfaPagerConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_RADAR_FRAMES: import_data.get(CONF_RADAR_FRAMES, DEFAULT_RADAR_FRAMES),
                 CONF_MEDIA_PLAYER: import_data.get(CONF_MEDIA_PLAYER, ""),
                 CONF_STREAMS: import_data.get(CONF_STREAMS, DEFAULT_STREAMS),
-                CONF_STREAM_USERNAME: import_data.get(CONF_STREAM_USERNAME, ""),
-                CONF_STREAM_PASSWORD: import_data.get(CONF_STREAM_PASSWORD, ""),
                 CONF_PLAY_SECONDS: import_data.get(CONF_PLAY_SECONDS, DEFAULT_PLAY_SECONDS),
                 CONF_AUDIO_ENABLED: import_data.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED),
                 CONF_ALERT_ENABLED: import_data.get(CONF_ALERT_ENABLED, DEFAULT_ALERT_ENABLED),

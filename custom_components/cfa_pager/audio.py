@@ -77,16 +77,6 @@ class AudioController:
     def play_seconds(self) -> int:
         return int(self.settings.get("play_seconds", 900))
 
-    def stream_url(self, stream: dict) -> str:
-        """The stream URL with credentials injected, for feeds behind HTTP Basic auth."""
-        url = stream.get("url", "")
-        user = self.settings.get("stream_username") or ""
-        password = self.settings.get("stream_password") or ""
-        if user and "://" in url and "@" not in url.split("://", 1)[1].split("/", 1)[0]:
-            scheme, rest = url.split("://", 1)
-            return f"{scheme}://{user}:{password}@{rest}"
-        return url
-
     def alert_url(self) -> str | None:
         """Absolute URL for the tone. A speaker needs one it can fetch itself."""
         try:
@@ -130,7 +120,7 @@ class AudioController:
             SERVICE_PLAY_MEDIA,
             {
                 ATTR_ENTITY_ID: self.player,
-                ATTR_MEDIA_CONTENT_ID: self.stream_url(stream),
+                ATTR_MEDIA_CONTENT_ID: stream["url"],
                 ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC,
             },
             blocking=False,
