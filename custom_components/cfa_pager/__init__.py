@@ -360,6 +360,26 @@ def _async_register_services(hass: HomeAssistant) -> None:
     )
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Bring an older entry up to the current version.
+
+    1.2 dropped the stream username and password. Nothing reads them any more, but the
+    options flow only replaces options on save, so they would sit in storage until then.
+    """
+    if entry.version > 1:
+        return False
+    if entry.minor_version < 2:
+        stale = ("stream_username", "stream_password")
+        hass.config_entries.async_update_entry(
+            entry,
+            data={k: v for k, v in entry.data.items() if k not in stale},
+            options={k: v for k, v in entry.options.items() if k not in stale},
+            minor_version=2,
+        )
+        _LOGGER.info("Migrated the config entry to 1.2, removing the stream login")
+    return True
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     feed = hass.data[DOMAIN].pop(entry.entry_id, None)

@@ -184,6 +184,8 @@ class CfaPagerConfigFlow(ConfigFlow, domain=DOMAIN):
     """Initial setup from the UI, or imported from YAML on first run."""
 
     VERSION = 1
+    # 2: the stream username and password are gone. See async_migrate_entry.
+    MINOR_VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
